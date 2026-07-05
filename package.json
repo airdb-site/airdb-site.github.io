@@ -1,0 +1,9 @@
+{
+  "name": "airdb-site.github.io",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build the airdb-site organization homepage for GitHub Pages.",
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  }
+}
