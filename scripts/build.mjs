@@ -2,6 +2,85 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { execSync } from "node:child_process";
 
 const DEFAULT_REPO = "airdb-site/airdb-site.github.io";
+const FEATURED_REPOS = [
+  {
+    name: "airdb.id",
+    description: "Home Page of https://airdb.id",
+    homepage: "https://airdb.id",
+    html_url: "https://github.com/airdb-site/airdb.id",
+    updated_at: "2026-07-09T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
+    name: "airdb.dev",
+    description: "Home Page of https://airdb.io",
+    homepage: "https://airdb.io",
+    html_url: "https://github.com/airdb-site/airdb.dev",
+    updated_at: "2026-07-09T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
+    name: "airdb.io",
+    description: "Home Page of https://airdb.io",
+    homepage: "https://airdb.io",
+    html_url: "https://github.com/airdb-site/airdb.io",
+    updated_at: "2026-07-09T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
+    name: "airdb.team",
+    description: "Home Page of https://airdb.team",
+    homepage: "https://airdb.team",
+    html_url: "https://github.com/airdb-site/airdb.team",
+    updated_at: "2026-07-08T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
+    name: "airdb.group",
+    description: "Home Page of https://airdb.group",
+    homepage: "https://airdb.group",
+    html_url: "https://github.com/airdb-site/airdb.group",
+    updated_at: "2026-07-08T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
+    name: "airdb.net",
+    description: "Home Page of https://airdb.net",
+    homepage: "https://airdb.net",
+    html_url: "https://github.com/airdb-site/airdb.net",
+    updated_at: "2026-07-08T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+];
+
+function normalizeRepo(repo) {
+  return {
+    private: false,
+    archived: false,
+    topics: [],
+    ...repo,
+  };
+}
+
+function mergeRepos(primaryRepos, featuredRepos) {
+  const byName = new Map();
+
+  for (const repo of featuredRepos.map(normalizeRepo)) {
+    byName.set(repo.name, repo);
+  }
+
+  for (const repo of primaryRepos.map(normalizeRepo)) {
+    byName.set(repo.name, { ...byName.get(repo.name), ...repo });
+  }
+
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => {
@@ -44,7 +123,11 @@ function getRepositorySlug() {
   return DEFAULT_REPO;
 }
 
-function inferProjectUrl(repo, owner) {
+function getRepositoryUrl(slug) {
+  return `https://github.com/${slug}`;
+}
+
+function inferProjectSiteUrl(repo, owner) {
   if (repo.homepage) {
     try {
       return new URL(repo.homepage).toString();
@@ -62,6 +145,10 @@ function inferProjectUrl(repo, owner) {
   }
 
   return repo.html_url;
+}
+
+function inferProjectRepoUrl(repo) {
+  return repo.html_url || "#";
 }
 
 async function fetchOrgRepos(owner, token) {
@@ -100,34 +187,27 @@ async function fetchOrgRepos(owner, token) {
   return repos;
 }
 
-function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
+function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, errorMessage }) {
   const items = repos
     .map((repo) => {
-      const projectUrl = inferProjectUrl(repo, owner);
+      const projectSiteUrl = inferProjectSiteUrl(repo, owner);
+      const projectRepoUrl = inferProjectRepoUrl(repo);
       const description = repo.description || "Frontend project";
-      const topics = Array.isArray(repo.topics) ? repo.topics.slice(0, 4) : [];
 
       return `
         <article class="card">
           <div class="card-top">
-            <div>
+            <div class="card-heading">
               <p class="eyebrow">public repo</p>
               <h2>${escapeHtml(repo.name)}</h2>
             </div>
-            <a class="visit" href="${escapeHtml(projectUrl)}">Visit</a>
+            <a class="visit secondary" href="${escapeHtml(projectRepoUrl)}">GitHub</a>
           </div>
           <p class="description">${escapeHtml(description)}</p>
           <div class="meta">
-            <a href="${escapeHtml(repo.html_url)}">GitHub</a>
+            <a href="${escapeHtml(projectSiteUrl)}">Open Site</a>
             <span>Updated ${escapeHtml(new Date(repo.updated_at).toLocaleDateString("en-CA"))}</span>
           </div>
-          ${
-            topics.length
-              ? `<div class="topics">${topics
-                  .map((topic) => `<span>${escapeHtml(topic)}</span>`)
-                  .join("")}</div>`
-              : ""
-          }
         </article>
       `;
     })
@@ -183,52 +263,136 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
 
       .hero {
         display: grid;
-        gap: 18px;
-        margin-bottom: 40px;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+        gap: 22px;
+        align-items: stretch;
+        margin-bottom: 34px;
+      }
+
+      .hero-copy,
+      .hero-panel {
+        padding: 30px 32px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 251, 245, 0.82);
+        box-shadow: 0 16px 40px rgba(25, 38, 49, 0.07);
+        backdrop-filter: blur(12px);
+      }
+
+      .hero-copy {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero-copy::after {
+        content: "";
+        position: absolute;
+        inset: auto -60px -70px auto;
+        width: 180px;
+        height: 180px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(202, 103, 2, 0.14), transparent 68%);
+        pointer-events: none;
       }
 
       .kicker {
         margin: 0;
-        font-size: 0.85rem;
-        letter-spacing: 0.18em;
+        font-size: 0.8rem;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
         color: var(--accent);
       }
 
       h1 {
-        margin: 0;
-        max-width: 10ch;
+        margin: 18px 0 0;
+        max-width: 11ch;
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(3rem, 7vw, 5.5rem);
-        line-height: 0.94;
+        font-size: clamp(2.3rem, 4.4vw, 3.9rem);
+        line-height: 0.96;
+        letter-spacing: -0.04em;
       }
 
       .lead {
+        margin: 22px 0 0;
+        max-width: 36rem;
+        font-size: 1rem;
+        line-height: 1.72;
+        color: var(--muted);
+      }
+
+      .hero-note {
+        margin: 18px 0 0;
+        max-width: 36rem;
+        font-size: 0.95rem;
+        line-height: 1.68;
+        color: var(--muted);
+      }
+
+      .hero-panel {
+        display: grid;
+        gap: 16px;
+        align-content: start;
+      }
+
+      .panel-label {
         margin: 0;
-        max-width: 700px;
-        font-size: 1.1rem;
-        line-height: 1.7;
+        font-size: 0.78rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+      }
+
+      .panel-count {
+        margin: 2px 0 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2rem, 3.4vw, 2.8rem);
+        line-height: 0.95;
+      }
+
+      .panel-subtitle {
+        margin: 0;
+        max-width: 18ch;
+        font-size: 0.95rem;
+        line-height: 1.45;
         color: var(--muted);
       }
 
       .summary {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 4px;
-        color: var(--muted);
-        font-size: 0.95rem;
+        display: grid;
+        gap: 10px;
+        margin-top: 6px;
       }
 
       .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 14px;
+        display: grid;
+        gap: 4px;
+        padding: 14px 16px 15px;
         border: 1px solid var(--line);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.72);
-        backdrop-filter: blur(8px);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.88);
+      }
+
+      .pill-label {
+        font-size: 0.76rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .pill-value {
+        font-size: 0.92rem;
+        line-height: 1.35;
+        color: var(--text);
+        word-break: break-word;
+      }
+
+      .pill-value a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .pill-value a:hover {
+        text-decoration: underline;
       }
 
       .grid {
@@ -247,11 +411,21 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
         backdrop-filter: blur(14px);
       }
 
+      .card {
+        display: flex;
+        flex-direction: column;
+      }
+
       .card-top {
         display: flex;
-        align-items: start;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
+      }
+
+      .card-heading {
+        min-width: 0;
+        flex: 1;
       }
 
       .eyebrow {
@@ -274,41 +448,41 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
       }
 
       .visit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         white-space: nowrap;
-        padding: 10px 14px;
+        min-width: 94px;
+        padding: 10px 16px;
         border-radius: 999px;
         border: 1px solid rgba(0, 95, 115, 0.22);
         background: rgba(0, 95, 115, 0.08);
+        flex-shrink: 0;
+      }
+
+      .visit.secondary {
+        border-color: rgba(0, 95, 115, 0.22);
+        background: rgba(255, 255, 255, 0.76);
       }
 
       .description {
-        min-height: 3.4em;
-        margin: 18px 0;
+        min-height: 1.6em;
+        margin: 16px 0 18px;
+        font-size: 0.96rem;
         color: var(--muted);
-        line-height: 1.6;
+        line-height: 1.45;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .meta {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
+        margin-top: auto;
         font-size: 0.92rem;
         color: var(--muted);
-      }
-
-      .topics {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 16px;
-      }
-
-      .topics span {
-        padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(202, 103, 2, 0.1);
-        color: #9b4d00;
-        font-size: 0.84rem;
       }
 
       footer {
@@ -317,18 +491,46 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
         font-size: 0.92rem;
       }
 
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .panel-subtitle,
+        .lead,
+        .hero-note {
+          max-width: none;
+        }
+      }
+
       @media (max-width: 640px) {
         main {
           width: min(100% - 20px, 1120px);
           padding: 48px 0 64px;
         }
 
+        .hero-copy,
+        .hero-panel {
+          padding: 22px 20px;
+          border-radius: 24px;
+        }
+
+        h1 {
+          max-width: 9ch;
+          font-size: clamp(2.2rem, 11vw, 3rem);
+        }
+
         .card-top {
-          flex-direction: column;
+          gap: 12px;
         }
 
         .visit {
-          align-self: flex-start;
+          min-width: 84px;
+          padding: 9px 14px;
+        }
+
+        .description {
+          font-size: 0.92rem;
         }
       }
     </style>
@@ -336,19 +538,33 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
   <body>
     <main>
       <section class="hero">
-        <p class="kicker">${escapeHtml(owner)} on GitHub Pages</p>
-        <h1>Projects you can open directly.</h1>
-        <p class="lead">
-          This homepage is generated during GitHub Pages deployment and lists the public
-          repositories in the <strong>${escapeHtml(owner)}</strong> organization. Repositories
-          like <strong>airdb.net</strong> and <strong>airdb.group</strong> can be surfaced here
-          automatically.
-        </p>
-        <div class="summary">
-          <span class="pill">${repos.length} public projects</span>
-          <span class="pill">source repo: ${escapeHtml(sourceRepo)}</span>
-          <span class="pill">generated: ${escapeHtml(generatedAt)}</span>
+        <div class="hero-copy">
+          <p class="kicker">${escapeHtml(owner)} on GitHub Pages</p>
+          <h1>Public projects, one clean directory.</h1>
+          <p class="lead">
+            A lightweight landing page for the <strong>${escapeHtml(owner)}</strong> organization.
+            Each card links back to the repository on GitHub and keeps a direct path to the live site.
+          </p>
+          <p class="hero-note">
+            Repositories like <strong>airdb.net</strong>, <strong>airdb.group</strong>, and
+            <strong>airdb.team</strong> can be surfaced automatically during deployment.
+          </p>
         </div>
+        <aside class="hero-panel">
+          <p class="panel-label">Overview</p>
+          <p class="panel-count">${repos.length}</p>
+          <p class="panel-subtitle">public projects currently featured on this page</p>
+          <div class="summary">
+            <div class="pill">
+              <span class="pill-label">Source Repo</span>
+              <span class="pill-value"><a href="${escapeHtml(sourceRepoUrl)}">${escapeHtml(sourceRepoUrl)}</a></span>
+            </div>
+            <div class="pill">
+              <span class="pill-label">Generated</span>
+              <span class="pill-value">${escapeHtml(generatedAt)}</span>
+            </div>
+          </div>
+        </aside>
       </section>
 
       <section class="grid">
@@ -366,6 +582,7 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, errorMessage }) {
 
 async function main() {
   const sourceRepo = getRepositorySlug();
+  const sourceRepoUrl = getRepositoryUrl(sourceRepo);
   const [owner, currentRepoName] = sourceRepo.split("/");
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
   const generatedAt = new Date().toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
@@ -388,11 +605,17 @@ async function main() {
     }
   }
 
+  repos = mergeRepos(
+    repos,
+    FEATURED_REPOS.filter((repo) => repo.name !== currentRepoName),
+  );
+
   const html = renderPage({
     owner,
     repos,
     generatedAt,
     sourceRepo,
+    sourceRepoUrl,
     errorMessage,
   });
 
