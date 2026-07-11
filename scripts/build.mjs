@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { execSync } from "node:child_process";
 
 const DEFAULT_REPO = "airdb-site/airdb-site.github.io";
@@ -233,6 +233,7 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, erro
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>${escapeHtml(owner)} projects</title>
     <meta
       name="description"
@@ -630,6 +631,7 @@ async function main() {
 
   await mkdir("dist", { recursive: true });
   await writeFile("dist/index.html", html, "utf8");
+  await copyFile("favicon.svg", "dist/favicon.svg");
 }
 
 await main();
