@@ -94,6 +94,15 @@ const FEATURED_REPOS = [
     has_pages: true,
   },
   {
+    name: "airdb.app",
+    description: "Home Page of https://airdb.app",
+    homepage: "https://airdb.app",
+    html_url: "https://github.com/airdb-site/airdb.app",
+    updated_at: "2026-07-12T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
     name: "airdb.space",
     description: "Home Page of https://airdb.space",
     homepage: "https://airdb.space",
