@@ -6,5 +6,6 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "node scripts/dev.mjs"
-  }
+  },
+  "packageManager": "pnpm@11.9.0"
 }
