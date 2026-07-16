@@ -120,6 +120,24 @@ const FEATURED_REPOS = [
     topics: ["homepage", "frontend"],
     has_pages: true,
   },
+  {
+    name: "airdb.tech",
+    description: "Home Page of https://airdb.tech",
+    homepage: "https://airdb.tech",
+    html_url: "https://github.com/airdb-site/airdb.tech",
+    updated_at: "2026-07-15T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
+  {
+    name: "airdb.cloud",
+    description: "Home Page of https://airdb.cloud",
+    homepage: "https://airdb.cloud",
+    html_url: "https://github.com/airdb-site/airdb.cloud",
+    updated_at: "2026-07-16T00:00:00.000Z",
+    topics: ["homepage", "frontend"],
+    has_pages: true,
+  },
 ];
 
 function normalizeRepo(repo) {
