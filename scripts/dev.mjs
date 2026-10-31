@@ -58,8 +58,8 @@ async function start() {
       response.end(data);
     } catch {
       try {
-        const fallback = await readFile(join(distDir, "index.html"));
-        response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        const fallback = await readFile(join(distDir, "404.html"));
+        response.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
         response.end(fallback);
       } catch {
         response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });

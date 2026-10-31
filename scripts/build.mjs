@@ -1,4 +1,5 @@
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { execSync } from "node:child_process";
 
 const DEFAULT_REPO = "airdb-site/airdb-site.github.io";
@@ -208,10 +209,11 @@ function getRepositoryUrl(slug) {
   return `https://github.com/${slug}`;
 }
 
-function inferProjectSiteUrl(repo, owner) {
+export function inferProjectSiteUrl(repo, owner) {
   if (repo.homepage) {
     try {
-      return new URL(repo.homepage).toString();
+      const homepage = new URL(repo.homepage);
+      if (["https:", "http:"].includes(homepage.protocol)) return homepage.toString();
     } catch {
       // Ignore malformed homepage values and continue falling back.
     }
@@ -244,6 +246,7 @@ async function fetchOrgRepos(owner, token) {
     url.searchParams.set("page", String(page));
 
     const response = await fetch(url, {
+      signal: AbortSignal.timeout(15000),
       headers: {
         Accept: "application/vnd.github+json",
         "User-Agent": "airdb-site-builder",
@@ -287,7 +290,7 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, erro
           <p class="description">${escapeHtml(description)}</p>
           <div class="meta">
             <a href="${escapeHtml(projectSiteUrl)}">Open Site</a>
-            <span>Updated ${escapeHtml(new Date(repo.updated_at).toLocaleDateString("en-CA"))}</span>
+            <span>${errorMessage ? "Curated fallback entry" : `Updated ${escapeHtml(new Date(repo.updated_at).toLocaleDateString("en-CA"))}`}</span>
           </div>
         </article>
       `;
@@ -320,7 +323,7 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, erro
         --text: #192631;
         --muted: #56646f;
         --accent: #005f73;
-        --accent-2: #ca6702;
+        --accent-2: #985000;
       }
 
       * {
@@ -521,6 +524,7 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, erro
       h2 {
         margin: 0;
         font-size: 1.4rem;
+        overflow-wrap: anywhere;
       }
 
       .visit,
@@ -619,6 +623,7 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, erro
   </head>
   <body>
     <main>
+      ${errorMessage ? `<p role="status">GitHub data is unavailable. Showing a curated fallback list; repository status and update dates are not current.</p>` : ""}
       <section class="hero">
         <div class="hero-copy">
           <p class="kicker">${escapeHtml(owner)} on GitHub Pages</p>
@@ -654,12 +659,19 @@ function renderPage({ owner, repos, generatedAt, sourceRepo, sourceRepoUrl, erro
       </section>
 
       <footer>
-        Built from the GitHub API at deploy time. Configure a repository homepage or enable
+        ${errorMessage ? "Built from the bundled fallback list." : "Built from the GitHub API at build time."} Configure a repository homepage or enable
         GitHub Pages to control each project's destination link.
       </footer>
     </main>
   </body>
 </html>`;
+}
+
+export function selectRepos(repos, fallback, currentRepoName, failed) {
+  return (failed ? fallback : repos)
+    .map(normalizeRepo)
+    .filter(repo => !repo.private && !repo.archived && repo.name !== currentRepoName)
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function main() {
@@ -687,10 +699,7 @@ async function main() {
     }
   }
 
-  repos = mergeRepos(
-    repos,
-    FEATURED_REPOS.filter((repo) => repo.name !== currentRepoName),
-  );
+  repos = selectRepos(repos, FEATURED_REPOS, currentRepoName, Boolean(errorMessage));
 
   const html = renderPage({
     owner,
@@ -704,6 +713,7 @@ async function main() {
   await mkdir("dist", { recursive: true });
   await writeFile("dist/index.html", html, "utf8");
   await copyFile("favicon.svg", "dist/favicon.svg");
+  await writeFile("dist/404.html", '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Page not found</title></head><body><main><h1>404 — Page not found</h1><a href="/">Return to the project directory</a></main></body></html>', "utf8");
 }
 
-await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
